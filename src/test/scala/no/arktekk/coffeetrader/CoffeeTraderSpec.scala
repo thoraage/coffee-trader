@@ -35,8 +35,10 @@ object CoffeeTraderSpec extends Specification {
     (headers, orderEntity, headers("Location").head)
   }
 
-  def put(location: String, elem: Elem) = {
-    Http(location <:< xmlTypes <<< elem.toString >+ {
+  def doAuth(auth: Option[(String, String)], req: Request): Request = auth.map(a => req as_!(a._1, a._2)).getOrElse(req)
+
+  def put(location: String, elem: Elem, auth: Option[(String, String)] = None) = {
+    Http(doAuth(auth, location) <:< xmlTypes <<< elem.toString >+ {
       h => (h >:> pass, h <> pass)
     })
   }
@@ -98,13 +100,7 @@ object CoffeeTraderSpec extends Specification {
     }
   }
 
-  "paying for beverage" should {
-    val (_, orderEntity, _) = postOrder
-
-    val paymentUrl = (orderEntity \\ "next" \\ "@uri").text
-    "give us a valid url for payment" in {
-      new URL(paymentUrl) mustNot throwA[MalformedURLException]
-    }
+  def putPayment(paymentUrl: String, orderEntity: Elem, auth: Option[(String, String)] = None) = {
     val payment =
       <payment>
         <cardNo>123456789</cardNo>
@@ -112,15 +108,45 @@ object CoffeeTraderSpec extends Specification {
         <name>John Citizen</name>
         <amount>3.00</amount>
       </payment>
-    val (headers, paymentEntity) = put(paymentUrl, payment)
+    put(paymentUrl, payment, auth)
+  }
+
+  "paying for beverage" should {
+    val (_, orderEntity, _) = postOrder
+
+    val auth = Some(("joe", "doe"))
+    val paymentUrl = (orderEntity \\ "next" \\ "@uri").text
+    "give us a valid url for payment" in {
+      new URL(paymentUrl) mustNot throwA[MalformedURLException]
+    }
+    val (headers, paymentEntity) = putPayment(paymentUrl, orderEntity, auth)
 
     "contain location" in {
       headers("Location").head must_== paymentUrl
     }
 
     "possible to retrieve" in {
-      Http(paymentUrl <:< xmlTypes <> pass) must_== paymentEntity
+      Http(doAuth(auth, paymentUrl) <:< xmlTypes <> pass) must_== paymentEntity
     }
+  }
+
+  "paying for beverage without authentication" should {
+    val (_, orderEntity, _) = postOrder
+
+    val paymentUrl = (orderEntity \\ "next" \\ "@uri").text
+    "result in no authorisation error" in {
+      putPayment(paymentUrl, orderEntity) must throwA[StatusCode].like {
+        case StatusCode(HttpStatus.SC_UNAUTHORIZED, _) => true
+      }
+    }
+  }
+
+  "paying for beverage multiple times" should {
+    val (_, orderEntity, _) = postOrder
+
+    val auth = Some(("joe", "doe"))
+    val paymentUrl = (orderEntity \\ "next" \\ "@uri").text
+    val (headers, paymentEntity) = putPayment(paymentUrl, orderEntity, auth)
   }
 
 }
