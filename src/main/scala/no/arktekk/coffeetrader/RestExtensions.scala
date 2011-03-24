@@ -1,6 +1,7 @@
 package no.arktekk.coffeetrader
 
 import net.liftweb.http._
+import org.apache.http.HttpStatus
 
 trait RestExtensions {
 
@@ -18,5 +19,9 @@ trait RestExtensions {
   }
 
   def pathify(req: Req, pathParts: String*) = (req.hostAndPath :: req.path.partPath ::: pathParts.toList).mkString("/")
+
+  case class ConflictResponse(message: String) extends LiftResponse with HeaderDefaults {
+    def toResponse = InMemoryResponse(message.getBytes("UTF-8"), "Content-Type" -> "text/plain; charset=utf-8" :: headers, cookies, HttpStatus.SC_CONFLICT)
+  }
 
 }
