@@ -1,6 +1,6 @@
 package no.arktekk.coffeetrader
 
-import dispatch.{StatusCode, Request, Http}
+import dispatch._
 import Http._
 import org.apache.http.client.methods.HttpOptions
 import org.apache.http.HttpStatus
@@ -8,7 +8,7 @@ import org.specs.Specification
 import xml.Elem
 import java.net.{MalformedURLException, URL}
 
-object CoffeeTraderSpec extends Specification {
+object CoffeeDrinkerSpec extends Specification {
   def pass[A](a: A) = a
 
   val address = "http://localhost:8086"
@@ -23,6 +23,12 @@ object CoffeeTraderSpec extends Specification {
     }
   }
 
+  implicit def toRichHandlers(handlers: Handlers) = new RichHandlers(handlers)
+
+  class RichHandlers(handlers: Handlers) {
+    def >? = Handler(handlers.request, (code, res, ent) => code)
+  }
+
   def postOrder = {
     val ordersUri = address + "/order"
     val order =
@@ -35,12 +41,15 @@ object CoffeeTraderSpec extends Specification {
     (headers, orderEntity, headers("Location").head)
   }
 
-  def doAuth(auth: Option[(String, String)], req: Request): Request = auth.map(a => req as_!(a._1, a._2)).getOrElse(req)
+  def doAuth(auth: Option[(String, String)], req: Request): Request = auth.map(a => req as_! (a._1, a._2)).getOrElse(req)
 
   def put(location: String, elem: Elem, auth: Option[(String, String)] = None) = {
-    Http(doAuth(auth, location) <:< xmlTypes <<< elem.toString >+ {
-      h => (h >:> pass, h <> pass)
+    val (headers, (entity, code)) = Http(doAuth(auth, location) <:< xmlTypes <<< elem.toString >+ {
+      h => (h >:> pass, h >+ {
+        h => (h <> pass, h >?)
+      })
     })
+    (headers, entity, code)
   }
 
   "added order to coffee shop" should {
@@ -68,7 +77,7 @@ object CoffeeTraderSpec extends Specification {
   "updated order to coffee shop" should {
     val (_, _, location) = postOrder
 
-    val (headers, orderEntity) = put(location,
+    val (headers, orderEntity, _) = put(location,
       <order>
         <additions>Shot</additions>
       </order>)
@@ -85,7 +94,7 @@ object CoffeeTraderSpec extends Specification {
   "updating finished order to coffee shop" should {
     val (_, _, location) = postOrder
 
-    val (headers, orderEntity) = put(location,
+    val (headers, orderEntity, _) = put(location,
       <order>
         <finished>true</finished>
       </order>)
@@ -119,7 +128,7 @@ object CoffeeTraderSpec extends Specification {
     "give us a valid url for payment" in {
       new URL(paymentUrl) mustNot throwA[MalformedURLException]
     }
-    val (headers, paymentEntity) = putPayment(paymentUrl, orderEntity, auth)
+    val (headers, paymentEntity, _) = putPayment(paymentUrl, orderEntity, auth)
 
     "contain location" in {
       headers("Location").head must_== paymentUrl
@@ -146,7 +155,16 @@ object CoffeeTraderSpec extends Specification {
 
     val auth = Some(("joe", "doe"))
     val paymentUrl = (orderEntity \\ "next" \\ "@uri").text
-    val (headers, paymentEntity) = putPayment(paymentUrl, orderEntity, auth)
+
+    val (_, _, createCode) = putPayment(paymentUrl, orderEntity, auth)
+    "first time create" in {
+      createCode must_== HttpStatus.SC_CREATED
+    }
+
+    val (_, _, updateCode) = putPayment(paymentUrl, orderEntity, auth)
+    "second time update" in {
+      updateCode must_== HttpStatus.SC_OK
+    }
   }
 
 }
