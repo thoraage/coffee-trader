@@ -24,9 +24,10 @@ object CoffeeTraderSpec extends Specification {
 
   def createOrder = {
     val ordersUri = address + "/order"
-    val order = <order>
-      <drink>Latte</drink>
-    </order>
+    val order =
+      <order>
+        <drink>Latte</drink>
+      </order>
     val (headers, orderEntity) = Http(ordersUri <:< xmlTypes << order.toString >+ {
       h => (h >:> pass, h <> pass)
     })
@@ -90,10 +91,14 @@ object CoffeeTraderSpec extends Specification {
       updateOrder(location,
         <order>
           <additions>Shot</additions>
-        </order>) must throwA[StatusCode].like { case StatusCode(HttpStatus.SC_CONFLICT, _) => true }
+        </order>) must throwA[StatusCode].like {
+        case StatusCode(HttpStatus.SC_CONFLICT, _) => true
+      }
     }
   }
 
 }
+
+// TODO: Should the error reply be in same media type (
 // TODO: Query for media-types and operations should work everywhere?
 // TODO: Add OPTIONS to dispatch

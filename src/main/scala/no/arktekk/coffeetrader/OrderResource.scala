@@ -26,11 +26,14 @@ object OrderResource extends RestHelper with RestExtensions {
   def findAndDo(orderId: Long, f: Elem => LiftResponse): Box[LiftResponse] =
     Box(orders.get(orderId.toLong).map(f).orElse(Some(NotFoundResponse())))
 
+  def pathify(req: Req, pathParts: String*) = (req.hostAndPath :: pathParts.toList).mkString("/")
+
   serve {
     case XmlPost("order" :: Nil, (requestElem, req)) =>
       val orderId = random.nextLong
-      val location = pathify(req, orderId.toString)
-      val elem = addChildren(requestElem, <cost>3.0</cost> <next rel="pay" uri={location} type={mediaType}/>.toSeq)
+      val location = pathify(req, req.path.partPath :+ orderId.toString: _*)
+      val paymentLocation = pathify(req, "payment", "order", orderId.toString)
+      val elem = addChildren(requestElem, <cost>3.0</cost> <next rel="pay" uri={paymentLocation} type={mediaType}/>.toSeq)
       orders = orders + (orderId -> elem)
       Full(new CreatedResponse(elem, mediaType) {
         override def headers = ("Location" -> location) :: super.headers
