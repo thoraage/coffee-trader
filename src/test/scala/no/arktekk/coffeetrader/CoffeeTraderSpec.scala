@@ -6,6 +6,7 @@ import org.apache.http.client.methods.HttpOptions
 import org.apache.http.HttpStatus
 import org.specs.Specification
 import xml.Elem
+import java.net.{MalformedURLException, URL}
 
 object CoffeeTraderSpec extends Specification {
   def pass[A](a: A) = a
@@ -22,7 +23,7 @@ object CoffeeTraderSpec extends Specification {
     }
   }
 
-  def createOrder = {
+  def postOrder = {
     val ordersUri = address + "/order"
     val order =
       <order>
@@ -34,14 +35,14 @@ object CoffeeTraderSpec extends Specification {
     (headers, orderEntity, headers("Location").head)
   }
 
-  def updateOrder(location: String, orderUpdate: Elem) = {
-    Http(location <:< xmlTypes <<< orderUpdate.toString >+ {
+  def put(location: String, elem: Elem) = {
+    Http(location <:< xmlTypes <<< elem.toString >+ {
       h => (h >:> pass, h <> pass)
     })
   }
 
   "added order to coffee shop" should {
-    val (headers, orderEntity, location) = createOrder
+    val (headers, orderEntity, location) = postOrder
 
     "contain location" in {
       headers must haveKey("Location")
@@ -63,9 +64,9 @@ object CoffeeTraderSpec extends Specification {
   }
 
   "updated order to coffee shop" should {
-    val (_, _, location) = createOrder
+    val (_, _, location) = postOrder
 
-    val (headers, orderEntity) = updateOrder(location,
+    val (headers, orderEntity) = put(location,
       <order>
         <additions>Shot</additions>
       </order>)
@@ -80,20 +81,45 @@ object CoffeeTraderSpec extends Specification {
   }
 
   "updating finished order to coffee shop" should {
-    val (_, _, location) = createOrder
+    val (_, _, location) = postOrder
 
-    val (headers, orderEntity) = updateOrder(location,
+    val (headers, orderEntity) = put(location,
       <order>
         <finished>true</finished>
       </order>)
 
     "result in conflict on further updates" in {
-      updateOrder(location,
+      put(location,
         <order>
           <additions>Shot</additions>
         </order>) must throwA[StatusCode].like {
         case StatusCode(HttpStatus.SC_CONFLICT, _) => true
       }
+    }
+  }
+
+  "paying for beverage" should {
+    val (_, orderEntity, _) = postOrder
+
+    val paymentUrl = (orderEntity \\ "next" \\ "@uri").text
+    "give us a valid url for payment" in {
+      new URL(paymentUrl) mustNot throwA[MalformedURLException]
+    }
+    val payment =
+      <payment>
+        <cardNo>123456789</cardNo>
+        <expires>07/07</expires>
+        <name>John Citizen</name>
+        <amount>3.00</amount>
+      </payment>
+    val (headers, paymentEntity) = put(paymentUrl, payment)
+
+    "contain location" in {
+      headers("Location").head must_== paymentUrl
+    }
+
+    "possible to retrieve" in {
+      Http(paymentUrl <:< xmlTypes <> pass) must_== paymentEntity
     }
   }
 
