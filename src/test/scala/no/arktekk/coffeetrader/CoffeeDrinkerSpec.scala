@@ -8,39 +8,7 @@ import org.specs.Specification
 import xml.Elem
 import java.net.{MalformedURLException, URL}
 
-object CoffeeDrinkerSpec extends Specification {
-  def pass[A](a: A) = a
-
-  val address = "http://localhost:8086"
-  val mediaType = "application/xml"
-  val xmlTypes = Map("Content-Type" -> mediaType, "Accept" -> mediaType)
-
-  implicit def toRichRequest(req: Request) = new RichRequest(req)
-
-  class RichRequest(req: Request) {
-    def OPTIONS = req.next {
-      Request.mimic(new HttpOptions) _
-    }
-  }
-
-  implicit def toRichHandlers(handlers: Handlers) = new RichHandlers(handlers)
-
-  class RichHandlers(handlers: Handlers) {
-    def >? = Handler(handlers.request, (code, res, ent) => code)
-  }
-
-  def postOrder = {
-    val ordersUri = address + "/order"
-    val order =
-      <order>
-        <drink>Latte</drink>
-      </order>
-    val (headers, orderEntity) = Http(ordersUri <:< xmlTypes << order.toString >+ {
-      h => (h >:> pass, h <> pass)
-    })
-    (headers, orderEntity, headers("Location").head)
-  }
-
+object CoffeeDrinkerSpec extends Specification with DispatchUtil {
   def doAuth(auth: Option[(String, String)], req: Request): Request = auth.map(a => req as_! (a._1, a._2)).getOrElse(req)
 
   def put(location: String, elem: Elem, auth: Option[(String, String)] = None) = {

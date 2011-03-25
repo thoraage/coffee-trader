@@ -20,15 +20,15 @@ object PaymentResource extends RestHelper with RestExtensions {
           Payments(orderId -> requestElem)
           val location = pathify(req, req.path.partPath: _*)
           if (exists)
-            XmlResponse(requestElem, mediaType)
+            XmlResponse(requestElem, xmlMediaType)
           else
-            new CreatedResponse(requestElem, mediaType) {
+            new CreatedResponse(requestElem, xmlMediaType) {
               override def headers = ("Location" -> location) :: super.headers
             }
       })
 
     case XmlGet("payment" :: "order" :: MatchLong(orderId) :: Nil, req) =>
-      Box(Payments(orderId).map(e => XmlResponse(e, mediaType)).orElse(Some(NotFoundResponse())))
+      Box(Payments(orderId).map(e => XmlResponse(e, xmlMediaType)).orElse(Some(NotFoundResponse())))
   }
 
 }

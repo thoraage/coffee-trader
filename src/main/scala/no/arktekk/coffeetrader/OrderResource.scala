@@ -2,11 +2,13 @@ package no.arktekk.coffeetrader
 
 import net.liftweb.http.rest.RestHelper
 import java.util.Random
-import net.liftweb.common.{Box, Full}
 import net.liftweb.http._
 import util.MatchLong
 import util.Resource._
 import xml.{NodeSeq, Elem}
+import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
+import net.liftweb.common.{Box, Full}
 
 object OrderResource extends RestHelper with RestExtensions {
   val random = new Random
@@ -23,17 +25,48 @@ object OrderResource extends RestHelper with RestExtensions {
       val orderId = random.nextLong
       val location = pathify(req, req.path.partPath :+ orderId.toString: _*)
       val paymentLocation = pathify(req, "payment", "order", orderId.toString)
-      val elem = addChildren(requestElem, <cost>3.0</cost> <next rel="pay" uri={paymentLocation} type={mediaType}/>.toSeq)
+      val elem = addChildren(requestElem, <cost>3.0</cost> <next rel="pay" uri={paymentLocation} type={xmlMediaType}/>.toSeq)
       Orders(orderId -> elem)
-      Full(new CreatedResponse(elem, mediaType) {
+      Full(new CreatedResponse(elem, xmlMediaType) {
         override def headers = ("Location" -> location) :: super.headers
       })
     case XmlGet("order" :: MatchLong(orderId) :: Nil, req) =>
-      Box(Orders(orderId).map(e => XmlResponse(e, mediaType)).orElse(Some(NotFoundResponse())))
+      Box(Orders(orderId).map(e => XmlResponse(e, xmlMediaType)).orElse(Some(NotFoundResponse())))
     case Options("order" :: MatchLong(orderId) :: Nil, req) =>
       findAndDo(orderId, e => OptionsResponse("GET", "PUT"))
   }
   // Doh https://lampsvn.epfl.ch/trac/scala/ticket/1133
+  serve {
+    case Delete("order" :: Nil, _) =>
+      Orders.removeAll
+      Full(NoContentResponse())
+    case Get("order" :: Nil, req) =>
+      if (req.contentType.getOrElse("") != atomMediaType)
+        Full(UnsupportedContentTypeResponse(atomMediaType))
+      else {
+        val response = <feed>
+          <title>Coffee Queue</title>
+          <updated>
+            {(new DateTime).toString(ISODateTimeFormat.dateTimeNoMillis)}
+          </updated>
+          <author>
+            <name>Coffee Trader</name>
+          </author>
+          <id>urn:coffee-maker:coffee-queue</id>{import Function.tupled
+          Orders.findAllEntries map tupled {
+            (id, elem) =>
+              val location = pathify(req, req.path.partPath :+ id.toString: _*)
+              <entry>
+                  <link rel="alternate" type={xmlMediaType} uri={location}/>
+                <id>
+                  {location}
+                </id>
+              </entry>
+          }}
+        </feed>
+        Full(XmlResponse(response, atomMediaType))
+      }
+  }
   serve {
     case XmlPut("order" :: MatchLong(orderId) :: Nil, (requestElem, req)) =>
       Box(Orders(orderId.toLong).map {
@@ -46,7 +79,7 @@ object OrderResource extends RestHelper with RestExtensions {
               e = replace(e, "cost", <cost>4.0</cost>)
             }
             Orders(orderId -> e)
-            XmlResponse(e, mediaType)
+            XmlResponse(e, xmlMediaType)
           }
       }.orElse(Some(NotFoundResponse())))
   }

@@ -18,6 +18,11 @@ trait RestExtensions {
     def toResponse = InMemoryResponse(Array(), ("Allow" -> methods.mkString(", ")) :: headers, cookies, 204)
   }
 
+  /** @see UnsupportedMediaTypeResponse */
+  case class UnsupportedContentTypeResponse(message: String) extends LiftResponse with HeaderDefaults {
+    def toResponse = InMemoryResponse(message.getBytes("UTF-8"), "Content-Type" -> "text/plain; charset=utf-8" :: headers, cookies, HttpStatus.SC_UNSUPPORTED_MEDIA_TYPE)
+  }
+
   case class ConflictResponse(message: String) extends LiftResponse with HeaderDefaults {
     def toResponse = InMemoryResponse(message.getBytes("UTF-8"), "Content-Type" -> "text/plain; charset=utf-8" :: headers, cookies, HttpStatus.SC_CONFLICT)
   }
