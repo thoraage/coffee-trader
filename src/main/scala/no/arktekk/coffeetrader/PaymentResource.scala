@@ -10,7 +10,7 @@ import net.liftweb.http.{CreatedResponse, XmlResponse, NotFoundResponse, LiftRes
 object PaymentResource extends RestHelper with RestExtensions {
 
   def findAndDo(orderId: Long, f: Elem => LiftResponse): Box[LiftResponse] =
-    Box(Orders(orderId.toLong).map(f).orElse(Some(NotFoundResponse())))
+    Box(Orders(orderId).map(entity => f(entity.elem)).orElse(Some(NotFoundResponse())))
 
   serve {
     case XmlPut("payment" :: "order" :: MatchLong(orderId) :: Nil, (requestElem, req)) =>
@@ -28,7 +28,7 @@ object PaymentResource extends RestHelper with RestExtensions {
       })
 
     case XmlGet("payment" :: "order" :: MatchLong(orderId) :: Nil, req) =>
-      Box(Payments(orderId).map(e => XmlResponse(e, xmlMediaType)).orElse(Some(NotFoundResponse())))
+      Box(Payments(orderId).map(_.elem).map(e => XmlResponse(e, xmlMediaType)).orElse(Some(NotFoundResponse())))
   }
 
 }

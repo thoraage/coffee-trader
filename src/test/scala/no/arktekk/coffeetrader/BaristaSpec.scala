@@ -12,9 +12,9 @@ object BaristaSpec extends Specification with DispatchUtil {
     postOrder
     postOrder
 
-    val entity = Http(ordersUrl <:< atomTypes <> pass)
+    val entries = Http(ordersUrl <:< atomTypes <> pass)
     "contain orders" in {
-      (entity \\ "entry").size must_== 2
+      (entries \\ "entry").size must_== 2
     }
   }
 
@@ -23,6 +23,16 @@ object BaristaSpec extends Specification with DispatchUtil {
       Http(ordersUrl <:< xmlTypes <> pass) must throwA[StatusCode].like {
         case StatusCode(HttpStatus.SC_UNSUPPORTED_MEDIA_TYPE, _) => true
       }
+    }
+  }
+
+  // TODO: Add Expires
+  "retrieve drink entry" should {
+    val entries = Http(ordersUrl <:< atomTypes <> pass)
+    val ids = (entries \\ "entry" \\ "id").map(_.text)
+    val entry = Http(ids.head.trim <:< atomTypes <> pass)
+    "contain drink" in {
+      (entry \\ "drink").text must_== "Latte"
     }
   }
 
