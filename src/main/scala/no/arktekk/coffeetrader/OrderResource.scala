@@ -2,14 +2,16 @@ package no.arktekk.coffeetrader
 
 import Function.tupled
 import java.util.Random
+import net.liftweb.common.{Box, Full}
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.http._
-import net.liftweb.common.{Box, Full, Empty}
+import net.liftweb.util.TimeHelpers._
 import org.joda.time.DateTime
-import org.joda.time.format.ISODateTimeFormat
 import util.MatchLong
-import util.Resource._
+import util.ResourceHelpers._
+import util.TimeHelpers._
 import xml.{NodeSeq, Elem}
+import org.apache.http.HttpStatus
 
 object OrderResource extends RestHelper with RestExtensions {
   val random = new Random
@@ -20,8 +22,6 @@ object OrderResource extends RestHelper with RestExtensions {
 
   def findAndDo(orderId: Long, f: Elem => LiftResponse): Box[LiftResponse] =
     Box(Orders(orderId).map(entity => f(entity.elem)).orElse(Some(NotFoundResponse())))
-
-  lazy val isoTimeFormat = ISODateTimeFormat.dateTimeNoMillis
 
   def orderLocation(req: Req, id: Long) = pathify(req, req.path.partPath :+ id.toString: _*)
 
@@ -90,7 +90,9 @@ object OrderResource extends RestHelper with RestExtensions {
               </entry>
           }}
         </feed>
-        Full(XmlResponse(response, atomMediaType))
+        Full(new XmlResponse(response, HttpStatus.SC_OK, atomMediaType, Nil) {
+          override def headers = ("Expires" -> expiresTimeFormatter.format((new DateTime).plus(1 minute).toDate)) :: super.headers.filter(_._1 != "Expires")
+        })
       }
   }
   serve {

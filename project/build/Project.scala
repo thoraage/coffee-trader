@@ -8,6 +8,7 @@ class Project(info: ProjectInfo) extends DefaultWebProject(info) {
   val dispatchHttp = dispatch("http")
   val specs        = "org.scala-tools.testing" %% "specs" % "1.6.7" % "test" withSources
   val httpClient   = "org.apache.httpcomponents" % "httpclient" % "4.0.1" withSources
+  val jodaTime     = "joda-time" % "joda-time" % "1.6.2" withSources
 
   val jettyTest    = "org.mortbay.jetty" % "jetty" % "6.1.22" % "test" withSources
   override def jettyPort = 8086

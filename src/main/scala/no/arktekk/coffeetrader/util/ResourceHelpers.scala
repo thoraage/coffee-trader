@@ -2,7 +2,7 @@ package no.arktekk.coffeetrader.util
 
 import net.liftweb.http.Req
 
-object Resource {
+object ResourceHelpers {
   val xmlMediaType = "application/xml"
   val atomMediaType = "application/atom+xml"
 

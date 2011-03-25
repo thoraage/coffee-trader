@@ -4,6 +4,9 @@ import dispatch.{StatusCode, Http}
 import Http._
 import org.apache.http.HttpStatus
 import org.specs.Specification
+import org.specs.util.TimeConversions._
+import util.TimeHelpers._
+import org.joda.time.{DateTime, Duration}
 
 object BaristaSpec extends Specification with DispatchUtil {
 
@@ -12,9 +15,17 @@ object BaristaSpec extends Specification with DispatchUtil {
     postOrder
     postOrder
 
-    val entries = Http(ordersUrl <:< atomTypes <> pass)
+    val (entries, headers) = Http(ordersUrl <:< atomTypes >+ (h => (h <> pass, h >:> pass)))
     "contain orders" in {
       (entries \\ "entry").size must_== 2
+    }
+
+    "should have expiring time" in {
+      headers.get("Expires").flatMap(_.headOption).map {
+        expires =>
+          val duration = new Duration(new DateTime, new DateTime(expiresTimeFormatter.parse(expires)))
+          duration.getMillis must beCloseTo(1.minute.at, 5.seconds.at)
+      }.getOrElse(error("Missing expires header"))
     }
   }
 
@@ -26,7 +37,6 @@ object BaristaSpec extends Specification with DispatchUtil {
     }
   }
 
-  // TODO: Add Expires
   "retrieve drink entry" should {
     val entries = Http(ordersUrl <:< atomTypes <> pass)
     val ids = (entries \\ "entry" \\ "id").map(_.text)

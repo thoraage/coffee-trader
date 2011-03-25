@@ -3,7 +3,7 @@ package no.arktekk.coffeetrader
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.common.Box
 import util.MatchLong
-import util.Resource._
+import util.ResourceHelpers._
 import xml.Elem
 import net.liftweb.http.{CreatedResponse, XmlResponse, NotFoundResponse, LiftResponse}
 
