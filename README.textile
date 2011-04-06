@@ -1,0 +1,21 @@
+h1. What is this
+
+This is an attempt to implement the REST work-flow as outlined by Jim Webber, Savas Parastatidis & Ian Robinson in the article "How to GET a Cup of Coffee" (http://www.infoq.com/articles/webber-rest-workflow).
+
+It is implemented using Dispatch on the client side and Scala Lift on the server side. The goal is to see what needs to be enhanced to do serious REST with these tools.
+
+The protocol is started client side from a Scala Specs test.
+
+h1. Running
+
+First make sure you've got Scala (http://www.scala-lang.org/) and sbt (http://code.google.com/p/simple-build-tool/) installed.
+
+Run sbt:
+* sbt
+
+Start jetty-server:
+* jetty-restart
+
+... and run test tests:
+* test
+
